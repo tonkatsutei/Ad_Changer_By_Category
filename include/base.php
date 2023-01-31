@@ -36,7 +36,7 @@ class _common
         $name = self::between('tonkatsutei\\', '\\', __NAMESPACE__)[0];
         $path = WP_PLUGIN_DIR . '/' . $name . '/';
         $path = str_replace('//', '/', $path);
-        $version = get_file_data($path . 'main.php', array('version' => 'Version'))['version'];
+        $version = get_file_data($path . $name . '.php', array('version' => 'Version'))['version'];
         $re['name'] = $name;
         $re['path'] = $path;
         $re['version'] = $version;

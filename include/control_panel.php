@@ -205,8 +205,8 @@ class _control_panel
                                         <th colspan=2 class="del_groupe">グループ削除 <span class="dashicons dashicons-table-row-delete"></span></th>
                                     </tr>
                                     <tr>
-                                        <th>HTMLタグ</th>
-                                        <th>カテゴリー</th>
+                                        <th>対象カテゴリー</th>
+                                        <th>HTMLタグ（広告）</th>
                                         <th>削除</th>
                                     </tr>
                                 </thead>
@@ -216,7 +216,10 @@ class _control_panel
                                             <textarea></textarea>
                                         </td>
                                         <td>
-                                            <textarea></textarea>
+                                            <textarea></textarea><br>
+                                             ショートコード：
+                                            [ACBC G=1 A=1]　
+                                            <span class="copy"><i class="fa fa-clipboard" aria-hidden="true"></i> COPY</span>
                                         </td>
                                         <td class="row_remove">
                                             <span class="dashicons dashicons-remove"></span>
@@ -253,6 +256,10 @@ class _control_panel
             .row_remove{
                 text-align:center;
             }
+            .tbl_groupe td {
+                vertical-align: top;
+                padding-bottom: 5px !important;
+            }
             thead tr:first-child th,
             tfoot td {
                 border : none !important;
@@ -267,8 +274,15 @@ class _control_panel
             #tbl_foot th {
                 cursor: pointer;
             }
-            tbody tr td:first-child textarea {
+            tbody tr td:nth-child(2) textarea {
                 width : 400px;
+            }
+            .copy {
+                border: 1px solid #fff;
+                padding: 3px;
+                border-radius: 5px;
+                margin-top: 5px;
+                display: inline-block;
             }
             </style>
         EOD;
