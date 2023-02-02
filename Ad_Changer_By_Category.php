@@ -4,14 +4,13 @@ Plugin Name: Ad Changer By Category
 Plugin URI: https://manual.tonkatsutei.com/acbc/
 Description: カテゴリーごとに設定した別々の広告を表示します。
 Author: ton活亭
-Version: 0.0.2
+Version: 0.0.3
 Author URI: https://twitter.com/tonkatsutei
 
 ▼ バージョン履歴
 
-0.0.2
-・やっぱりformで管理画面をすることにした
-・tableのデザインまで
+0.0.3
+・フォーム完成
 
 */
 

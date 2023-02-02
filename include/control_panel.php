@@ -29,6 +29,7 @@ class _control_panel
     {
         // 更新ボタンを押した場合
         if (isset($_POST['settei'])) {
+
             // POSTデータから保存値を更新
             _image_size::update_control_panel();
             // 更新値を反映
@@ -42,6 +43,16 @@ class _control_panel
         } else {
             $v["settei_res"] = '';
         }
+
+        // httpの場合
+        if ($_SERVER['HTTPS'] != 'on') {
+            $v['http_msg_id'] = 'http_msg_on';
+        } else {
+            $v['http_msg_id'] = 'http_msg_off';
+        }
+
+        // ID
+        $v['idx'] = 1;
 
         // 保存値を取得
         // 更新の場合は更新済みの値がセットされている
@@ -87,6 +98,8 @@ class _control_panel
 
         // HTML
         $code = self::html($v);
+        $code = self::html($v);
+        $code .= self::acbc_style($v);
         $code .= self::main_style($v);
         $code .= self::dark_mode_style($v);
 
@@ -161,9 +174,10 @@ class _control_panel
 
     private static function html(array $v): string
     {
+
         $prefix = "_" . _common::plugin()['name'];
         return <<<EOD
-            <form method="post" action="" enctype="multipart/form-data">
+            <form method="post" action="" enctype="multipart/form-data" id="acbc_form">
                 <div class="{$prefix}_wrap">
                     <div class="settei_res">{$v["settei_res"]}</div>
 
@@ -171,6 +185,10 @@ class _control_panel
                         Ad Changer By Category
                     </h2>
                     <div class='version'>{$v['version']}</div>
+                    <div id='{$v['http_msg_id']}'>
+                        <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+                        HTTP（非SSL）では[COPY]ボタンは機能しません。
+                    </div>
 
                     <!--{$v['table']}-->
 
@@ -184,25 +202,53 @@ class _control_panel
                         </tr>
                         <tr>
                             <td>
-                                <button type="submit" name="settei" value="on">更 新</button>
+                                <button type="submit" name="settei" id="settei" value="on">更 新</button>
                             </td>
                         </tr>
                     </table>
 
                 </div>
             </form>
+
             <script src="https://code.jquery.com/jquery-3.6.3.min.js" integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
             <script>
                 $(function(){
-                    var idx = 3;
+                    var idx = {$v['idx']};
                     var idg = 1;
+
+                    function row_new(idg){
+                        return `
+                            <tr>
+                                <td>
+                                    <textarea class="cate" name="\${idg}">cate \${idg}</textarea>
+                                </td>
+                                <td>
+                                    <textarea class="adcode" name="\${idg}">hoge \${idg}</textarea>
+                                </td>
+                                <td class="row_remove">
+                                    <i class="del_row fa fa-minus-square" aria-hidden="true"></i>
+                                </td>
+                            </tr>
+                        `;
+                    }
+
                     function tbl_new(idg){
+                        var row_new_src = row_new(idg);
                         return `
                             <table class="tbl_groupe">
                                 <thead>
                                     <tr>
-                                        <th><h3>グループ \${idg}</h3></th>
-                                        <th colspan=2 class="del_groupe">グループ削除 <span class="dashicons dashicons-table-row-delete"></span></th>
+                                        <th colspan=3>
+                                            <div class="horizontal">
+                                                <h3>グループ \${idg}</h3>
+                                                <div>
+                                                    ショートコード：
+                                                    <span class="code">[ACBC G=\${idg}]</span>　
+                                                    <span class="copycode" data-code="[ACBC G=\${idg}]"><i class="fa fa-clipboard" aria-hidden="true"></i> COPY</span>
+                                                </div>
+                                                <div class="del_groupe">このグループを削除 <i class="fa fa-minus-square-o" aria-hidden="true"></i></div>
+                                            </div>
+                                        </th>
                                     </tr>
                                     <tr>
                                         <th>対象カテゴリー</th>
@@ -211,78 +257,140 @@ class _control_panel
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr>
-                                        <td>
-                                            <textarea></textarea>
-                                        </td>
-                                        <td>
-                                            <textarea></textarea><br>
-                                             ショートコード：
-                                            [ACBC G=1 A=1]　
-                                            <span class="copy"><i class="fa fa-clipboard" aria-hidden="true"></i> COPY</span>
-                                        </td>
-                                        <td class="row_remove">
-                                            <span class="dashicons dashicons-remove"></span>
-                                        </td>
-                                    </tr>
+                                    \${row_new_src}
+                                    \${row_new_src}
+                                    \${row_new_src}
                                 </tbody>
                                 <tfoot>
                                     <tr>
                                         <td colspan=3 class="border_none">
-                                            <span class="dashicons dashicons-insert"></span>
-                                            タグ行追加
+                                            <span class='add_row'>
+                                                <i class="fa fa-plus-square" aria-hidden="true"></i>
+                                                タグ行追加
+                                            </span>
                                         </td>
                                     </tr>
                                 </tfoot>
                             </table>
                         `;
                     }
+
+                    // ふわっと表示
+                    $('.tbl_groupe').fadeIn(3000);
+
+                    // 初期表示
                     $('#hoge').after(tbl_new(idg));
-                    $('#add_groupe').click(function(event){
+
+                    // グループ追加
+                    $(document).on("click", "#add_groupe", function(event){
                         $('#tbl_foot').before(tbl_new(++idg));
                     });
-                    $('#tbl1').on("click", ".dashicons-table-row-delete", function(event){
+
+                    // グループ削除
+                    $(document).on("click", ".del_groupe", function(event){
+                        $(this).parent().parent().parent().parent().parent().remove();
+                    });
+
+                    // 行追加
+                    $(document).on("click", ".add_row", function(event){
+                        ++idg;
+                        $(this).parents('table').find('tbody').append(row_new(idg));
+                    });
+
+                    // 行削除
+                    $(document).on("click", ".del_row", function(event){
                         $(this).parent().parent().remove();
                     });
+
+                    // ショートコードをコピー
+                    $(document).on("click", ".copycode", function(event){
+                        const code = $(this).data('code');
+                        navigator.clipboard.writeText(code);
+                    });
+
+                    // 送信前にtextareaのnameに連番を振る
+                    $(document).on("click", "#settei", function(event){
+                        $('.cate').each(function(i){
+                            var g = $(this).attr('name');
+                            $(this).attr('name', 'cate_' + g + '_' + (i+1));
+                        });
+                        $('.adcode').each(function(i){
+                            var g = $(this).attr('name');
+                            $(this).attr('name', 'adcode_' + g + '_' + (i+1));
+                        });
+                    });
+
                 });
             </script>
+        EOD;
+    }
+
+    private static function acbc_style(array $v): string
+    {
+        $prefix = "_" . _common::plugin()['name'];
+        return <<<EOD
             <style>
-            h3 {
-                text-align:left;
+            .{$prefix}_wrap #http_msg_on{
+                margin-top: 1em;
+                padding: 10px;
             }
-            .del_groupe{
+            .{$prefix}_wrap #http_msg_on i{
+                font-size: 2em;
+                color: #f39800;
+            }
+            .{$prefix}_wrap #http_msg_off{
+                display: none;
+            }
+            .{$prefix}_wrap .horizontal {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .{$prefix}_wrap .code {
+                /*font-weight: normal;*/
+                color: #8ab4f8;
+            }
+            .{$prefix}_wrap .del_groupe{
                 text-align:right;
             }
-            .row_remove{
+            .{$prefix}_wrap .row_remove{
                 text-align:center;
+                padding-top: 1em;
             }
-            .tbl_groupe td {
+            .{$prefix}_wrap .tbl_groupe td {
                 vertical-align: top;
                 padding-bottom: 5px !important;
             }
-            thead tr:first-child th,
-            tfoot td {
+            .{$prefix}_wrap thead tr:first-child th,
+            .{$prefix}_wrap tfoot td {
                 border : none !important;
             }
-            #tbl_foot th {
+            .{$prefix}_wrap #tbl_foot th {
                 border : 1px solid #fff !important;
             }
-            #tbl_foot td {
+            .{$prefix}_wrap #tbl_foot td {
                 border : none !important;
             }
-            .dashicons,
-            #tbl_foot th {
+            .{$prefix}_wrap #settei,
+            .{$prefix}_wrap .copycode,
+            .{$prefix}_wrap .add_row,
+            .{$prefix}_wrap .del_groupe,
+            .{$prefix}_wrap i,
+            .{$prefix}_wrap #tbl_foot th {
                 cursor: pointer;
             }
-            tbody tr td:nth-child(2) textarea {
+            .{$prefix}_wrap tbody tr td:nth-child(2) textarea {
                 width : 400px;
             }
-            .copy {
+            .{$prefix}_wrap .copycode {
                 border: 1px solid #fff;
                 padding: 3px;
                 border-radius: 5px;
                 margin-top: 5px;
                 display: inline-block;
+            }
+            .{$prefix}_wrap .fa{
+                font-size: 1.6em;
             }
             </style>
         EOD;
@@ -300,7 +408,7 @@ class _control_panel
                 padding: 1em;
                 border-radius: 10px;
                 letter-spacing: 0.1em;
-            }            
+            }
             .{$prefix}_wrap .center{
                 text-align:center;
             }
