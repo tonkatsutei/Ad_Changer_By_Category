@@ -32,23 +32,24 @@ class _control_panel
 
             // POSTデータを取得
             $data = [];
+            $group = [];
             foreach ($_POST as $key => $val) {
                 if (false !== strpos($key, 'cate')) {
-                    $n = _common::between('_', 'e', $key . 'e')[0];
-                    $g = _common::between('cate_', '_', $key)[0];
-                    $data[$n]['group'] = $g;
+                    $g = (int)_common::between('cate_', '_', $key)[0];
+                    $n = (int)_common::between('_', 'e', $key . 'e')[0];
                     $val = str_replace([' ', '　', "\r\n", "\r", "\n", "\t"], ',', $val);
-                    $data[$n]['cate'] = explode(',', $val);
+                    $data[$g][$n]['cate'] = explode(',', $val);
                 }
                 if (false !== strpos($key, 'adcode')) {
-                    $n = _common::between('_', 'e', $key . 'e')[0];
-                    $data[$n]['adcode'] = $val;
+                    $g = (int)_common::between('cate_', '_', $key)[0];
+                    $n = (int)_common::between('_', 'e', $key . 'e')[0];
+                    $data[$g][$n]['adcode'] = $val;
+                    $group[$g] = $g;
                 }
             }
 
             // 設定済みの最後のグループ番号
-            $gu = array_column($data, 'group');
-            $v['idg'] = max($gu);
+            $v['idg'] = max($group);
 
             // 保存
             $data_str = serialize($data);
@@ -70,8 +71,8 @@ class _control_panel
         }
 
         // 設定済みの最後のグループ番号
-        $v['idg'] = _options::get(('idg'));
-        if ($v['idg'] === '') {
+        $v['idg'] = (int)_options::get(('idg'));
+        if ($v['idg'] === 0) {
             $v['idg'] = 1;
         }
 
@@ -79,27 +80,46 @@ class _control_panel
         // 更新の場合は更新済みの値がセットされている
         $data = _options::get('data');
         $data = unserialize($data);
-        print '<pre>';
-        print_r($data);
-        print '</pre>';
 
-        // 表示用TABLE
-        $v['table'] = "<table name='usable_image_sizes'>";
-        $v['table'] .= <<<EOF
-            <tr>
-                <th></th>
-                <th>サイズ</th>
-                <th>切替</th>
-                <th>width</th>
-                <th>height</th>
-                <th>crop</th>
-                <th>初期化</th>
-            </tr>
-        EOF;
-        $v['table'] .= '</table>';
+        // 新規の時
+        if (empty($data)) {
+            $new_flug = true;
+        } else {
+            $new_flug = false;
+        }
+
+        // 重複を除いたグループ番号だけの配列
+        if ($new_flug) {
+            $group[1] = 1;
+        } else {
+            $gu = array_column($data, 'group');
+            foreach ($gu as $i) {
+                $group[$i] = $i;
+            }
+        }
+
+        // 保存値からTABLEを生成
+        $tables = '';
+        if ($new_flug) {
+            print "NEW<br>";
+            $row_src = self::row_new_src((string)$v['idg'], '', '');
+            $tables .= self::tbl_new_src('1', $row_src);
+        } else {
+            foreach ($group as $num => $vals) {
+                $row_src = '';
+                foreach ($vals as $key) {
+                    $row_src .= self::row_new_src((string)$num, $key['cate'], $key['adcode']);
+                }
+                $tables .= self::tbl_new_src((string)$num, $row_src);
+            }
+        }
+        $v['tables'] = $tables;
 
         // バージョン
         $v['version'] = 'Ver.' . _common::plugin()['version'];
+
+        $v['row_new_src'] = self::row_new_src('%idg', '%val_cate', '%val_adcode');
+        $v['tbl_new_src'] = self::tbl_new_src('%idg', '%row_new_src');
 
         // HTML
         $code = self::html($v);
@@ -107,13 +127,6 @@ class _control_panel
         $code .= self::main_style($v);
         $code .= self::dark_mode_style($v);
         print $code;
-    }
-
-    // 保存値
-    private static function get_saved_value(): array
-    {
-
-        return [];
     }
 
     private static function html(array $v): string
@@ -133,7 +146,7 @@ class _control_panel
                         HTTP（非SSL）では[COPY]ボタンは機能しません。
                     </div>
 
-                    <!--{$v['table']}-->
+                    {$v['tables']}
 
                     <div id="hoge"></div>
                     <table id="tbl_foot">
@@ -159,64 +172,24 @@ class _control_panel
                     var idg = {$v['idg']};
 
                     function row_new(idg){
-                        return `
-                            <tr>
-                                <td>
-                                    <textarea class="cate" name="\${idg}">cate \${idg}</textarea>
-                                </td>
-                                <td>
-                                    <textarea class="adcode" name="\${idg}">hoge \${idg}</textarea>
-                                </td>
-                                <td class="row_remove">
-                                    <i class="del_row fa fa-minus-square" aria-hidden="true"></i>
-                                </td>
-                            </tr>
+                        var row_new = `
+                            {$v['row_new_src']}
                         `;
+                        row_new = row_new.replace( /%idg/g, idg );
+                        row_new = row_new.replace( /%val_cate/g, '' );
+                        row_new = row_new.replace( /%val_adcode/g, '' );
+                        return row_new;
                     }
 
                     function tbl_new(idg){
                         var row_new_src = row_new(idg);
-                        return `
-                            <table class="tbl_groupe">
-                                <thead>
-                                    <tr>
-                                        <th colspan=3>
-                                            <div class="horizontal">
-                                                <h3>グループ \${idg}</h3>
-                                                <div>
-                                                    ショートコード：
-                                                    <span class="code">[ACBC G=\${idg}]</span>　
-                                                    <span class="copycode" data-code="[ACBC G=\${idg}]"><i class="fa fa-clipboard" aria-hidden="true"></i> COPY</span>
-                                                </div>
-                                                <div class="del_groupe">このグループを削除 <i class="fa fa-minus-square-o" aria-hidden="true"></i></div>
-                                            </div>
-                                        </th>
-                                    </tr>
-                                    <tr>
-                                        <th>対象カテゴリー</th>
-                                        <th>HTMLタグ（広告）</th>
-                                        <th>削除</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    \${row_new_src}
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <td colspan=3 class="border_none">
-                                            <span class='add_row'>
-                                                <i class="fa fa-plus-square" aria-hidden="true"></i>
-                                                タグ行追加
-                                            </span>
-                                        </td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                        var tbl_new_src = `
+                            {$v['tbl_new_src']}
                         `;
+                        tbl_new_src = tbl_new_src.replace( /%row_new_src/g, row_new_src );
+                        tbl_new_src = tbl_new_src.replace( /%idg/g, idg );
+                        return tbl_new_src;
                     }
-
-                    // 初期表示
-                    $('#hoge').after(tbl_new(idg));
 
                     // グループ追加
                     $(document).on("click", "#add_groupe", function(event){
@@ -259,6 +232,64 @@ class _control_panel
 
                 });
             </script>
+        EOD;
+    }
+
+    private static function row_new_src(string $idg, string $cate, string $adcode): string
+    {
+        return <<<EOD
+            <tr>
+                <td>
+                    <textarea class="cate" name="{$idg}">{$cate}</textarea>
+                </td>
+                <td>
+                    <textarea class="adcode" name="{$idg}">{$adcode}</textarea>
+                </td>
+                <td class="row_remove">
+                    <i class="del_row fa fa-minus-square" aria-hidden="true"></i>
+                </td>
+            </tr>
+        EOD;
+    }
+
+    private static function tbl_new_src(string $idg, string $row_src): string
+    {
+        return <<<EOD
+            <table class="tbl_groupe">
+            <thead>
+                <tr>
+                    <th colspan=3>
+                        <div class="horizontal">
+                            <h3>グループ {$idg}</h3>
+                            <div>
+                                ショートコード：
+                                <span class="code">[ACBC G={$idg}]</span>　
+                                <span class="copycode" data-code="[ACBC G={$idg}]"><i class="fa fa-clipboard" aria-hidden="true"></i> COPY</span>
+                            </div>
+                            <div class="del_groupe">このグループを削除 <i class="fa fa-minus-square-o" aria-hidden="true"></i></div>
+                        </div>
+                    </th>
+                </tr>
+                <tr>
+                    <th>対象カテゴリー</th>
+                    <th>HTMLタグ（広告）</th>
+                    <th>削除</th>
+                </tr>
+            </thead>
+            <tbody>
+                {$row_src}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan=3 class="border_none">
+                        <span class='add_row'>
+                            <i class="fa fa-plus-square" aria-hidden="true"></i>
+                            タグ行追加
+                        </span>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
         EOD;
     }
 
