@@ -17,7 +17,7 @@ class _base
         add_action('admin_menu', 'tonkatsutei\Ad_Changer_By_Category\control_panel\_control_panel::show_admin_menu');
 
         // 設定を反映させる
-        add_action('init', 'tonkatsutei\Ad_Changer_By_Category\image_size\_image_size::apply_setting', 50000);
+        //add_action('init', 'tonkatsutei\Ad_Changer_By_Category\image_size\_image_size::apply_setting', 50000);
     }
 
     public static function autoload(): void

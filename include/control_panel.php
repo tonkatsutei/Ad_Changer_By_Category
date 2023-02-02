@@ -30,15 +30,33 @@ class _control_panel
         // 更新ボタンを押した場合
         if (isset($_POST['settei'])) {
 
-            // POSTデータから保存値を更新
-            _image_size::update_control_panel();
-            // 更新値を反映
-            _image_size::apply_setting();
+            // POSTデータを取得
+            $data = [];
+            foreach ($_POST as $key => $val) {
+                if (false !== strpos($key, 'cate')) {
+                    $n = _common::between('_', 'e', $key . 'e')[0];
+                    $g = _common::between('cate_', '_', $key)[0];
+                    $data[$n]['group'] = $g;
+                    $val = str_replace([' ', '　', "\r\n", "\r", "\n", "\t"], ',', $val);
+                    $data[$n]['cate'] = explode(',', $val);
+                }
+                if (false !== strpos($key, 'adcode')) {
+                    $n = _common::between('_', 'e', $key . 'e')[0];
+                    $data[$n]['adcode'] = $val;
+                }
+            }
+
+            // 設定済みの最後のグループ番号
+            $gu = array_column($data, 'group');
+            $v['idg'] = max($gu);
+
+            // 保存
+            $data_str = serialize($data);
+            _options::update('data', $data_str);
+            _options::update('idg', $v['idg']);
+
             $v["settei_res"] = <<<EOD
-                <div style="padding:1em;">
-                    更新しました。<br>
-                    反映しない場合は他のプラグインやテーマを確認してください。
-                </div>
+                <div style="padding:1em;">更新しました。</div>
             EOD;
         } else {
             $v["settei_res"] = '';
@@ -51,130 +69,55 @@ class _control_panel
             $v['http_msg_id'] = 'http_msg_off';
         }
 
-        // ID
-        $v['idx'] = 1;
+        // 設定済みの最後のグループ番号
+        $v['idg'] = _options::get(('idg'));
+        if ($v['idg'] === '') {
+            $v['idg'] = 1;
+        }
 
         // 保存値を取得
         // 更新の場合は更新済みの値がセットされている
-        $image_sizes = self::get_saved_value();
+        $data = _options::get('data');
+        $data = unserialize($data);
+        print '<pre>';
+        print_r($data);
+        print '</pre>';
 
         // 表示用TABLE
-        $table_html = "<table name='usable_image_sizes'>";
-        $table_html .= <<<EOF
-                        <tr>
-                            <th></th>
-                            <th>サイズ</th>
-                            <th>切替</th>
-                            <th>width</th>
-                            <th>height</th>
-                            <th>crop</th>
-                            <th>初期化</th>
-                        </tr>
-                    EOF;
-        foreach ($image_sizes as $key => $val) {
-            $type = $val['type'];
-            $width = (int)$val['width'];
-            $height = (int)$val['height'];
-            $flug = (int)$val['flug'];
-            if ($flug === 1) {
-                $flug = true;
-            } else {
-                $flug = false;
-            }
-            $crop = (int)$val['crop'];
-            if ($crop === 1) {
-                $crop = true;
-            } else {
-                $crop = false;
-            }
-            $table_html .= self::usable_image_size_tr($type, $key, $flug, $width, $height, $crop);
-        }
-        $table_html .= '</table>';
+        $v['table'] = "<table name='usable_image_sizes'>";
+        $v['table'] .= <<<EOF
+            <tr>
+                <th></th>
+                <th>サイズ</th>
+                <th>切替</th>
+                <th>width</th>
+                <th>height</th>
+                <th>crop</th>
+                <th>初期化</th>
+            </tr>
+        EOF;
+        $v['table'] .= '</table>';
 
-        // フォームにセット
-        $v['table'] = $table_html;
-        //$v['name'] = str_replace('_', ' ', _common::plugin()['name']);
+        // バージョン
         $v['version'] = 'Ver.' . _common::plugin()['version'];
 
         // HTML
         $code = self::html($v);
-        $code = self::html($v);
         $code .= self::acbc_style($v);
         $code .= self::main_style($v);
         $code .= self::dark_mode_style($v);
-
         print $code;
     }
 
     // 保存値
     private static function get_saved_value(): array
     {
-        // 標準アイキャッチ
-        $array = _image_size::get_regular_image_sizes();
-        foreach ($array as $key => $val) {
-            $image_size[$key] = $val;
-        }
 
-        // 追加アイキャッチ
-        $added = _image_size::get_added_image_sizes();
-        foreach ($added as $key => $val) {
-            $image_size[$key] = $val;
-        }
-
-        return $image_size;
-    }
-
-    private static function usable_image_size_tr(string $type, string $name, bool $flug, int $width, int $height, bool $crop): string
-    {
-        if ($type === 'regular') {
-            //$type_src = '<span class="dashicons dashicons-wordpress-alt"></span>';
-            $type_src = '<span class="dashicons dashicons-wordpress"></span>';
-        } else {
-            $type_src = '<span class="dashicons dashicons-layout"></span>';
-        }
-
-        if ($flug) {
-            $flug_src = <<<EOD
-                        　<label><input type='radio' name='data_{$name}_f' value='0'>OFF</label>
-                        　<label><input type='radio' name='data_{$name}_f' value='1' checked = 'cheched' >ON</label>　
-                    EOD;
-        } else {
-            $flug_src = <<<EOD
-                        　<label><input type='radio' name='data_{$name}_f' value='0' checked = 'cheched'>OFF</label>
-                        　<label><input type='radio' name='data_{$name}_f' value='1'>ON</label>　
-                    EOD;
-        }
-
-        if ($crop) {
-            $crop = 1;
-        } else {
-            $crop = 0;
-        }
-
-        if ($type === 'regular' && $name !== 'thumbnail') {
-            $crop_src = "<input type='text' value='0' style='text-align:center;color:#000;' disabled><input type='hidden' name='data_{$name}_c' value='0'>";
-        } else {
-            $crop_src = "<input type='text' name='data_{$name}_c' value='{$crop}' style='text-align:center;'>";
-        }
-
-        $initialization_src = "<input type='checkbox' name='data_{$name}_i' value='1'>";
-
-        return <<<EOD
-            <tr>
-                <td>{$type_src}</td>
-                <td>{$name}</td>
-                <td>{$flug_src}</td>
-                <td><input type='text' name='data_{$name}_w' value='{$width}'  style='text-align:right;'></td>
-                <td><input type='text' name='data_{$name}_h' value='{$height}' style='text-align:right;'></td>
-                <td>{$crop_src}</td>
-                <td style='text-align:center;'>{$initialization_src}</td>
-            </tr>
-        EOD;
+        return [];
     }
 
     private static function html(array $v): string
     {
-
         $prefix = "_" . _common::plugin()['name'];
         return <<<EOD
             <form method="post" action="" enctype="multipart/form-data" id="acbc_form">
@@ -213,8 +156,7 @@ class _control_panel
             <script src="https://code.jquery.com/jquery-3.6.3.min.js" integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
             <script>
                 $(function(){
-                    var idx = {$v['idx']};
-                    var idg = 1;
+                    var idg = {$v['idg']};
 
                     function row_new(idg){
                         return `
@@ -258,8 +200,6 @@ class _control_panel
                                 </thead>
                                 <tbody>
                                     \${row_new_src}
-                                    \${row_new_src}
-                                    \${row_new_src}
                                 </tbody>
                                 <tfoot>
                                     <tr>
@@ -275,15 +215,13 @@ class _control_panel
                         `;
                     }
 
-                    // ふわっと表示
-                    $('.tbl_groupe').fadeIn(3000);
-
                     // 初期表示
                     $('#hoge').after(tbl_new(idg));
 
                     // グループ追加
                     $(document).on("click", "#add_groupe", function(event){
-                        $('#tbl_foot').before(tbl_new(++idg));
+                        ++idg;
+                        $('#tbl_foot').before(tbl_new(idg));
                     });
 
                     // グループ削除
@@ -293,7 +231,6 @@ class _control_panel
 
                     // 行追加
                     $(document).on("click", ".add_row", function(event){
-                        ++idg;
                         $(this).parents('table').find('tbody').append(row_new(idg));
                     });
 
