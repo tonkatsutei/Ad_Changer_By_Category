@@ -69,6 +69,7 @@ class _common
             // $begで区切る
             $array = explode($beg, $str);
 
+            $re = [];
             foreach ($array as $item) {
                 // $endの位置
                 $pos = strpos($item, $end);

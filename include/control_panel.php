@@ -34,19 +34,24 @@ class _control_panel
             $data = [];
             $group = [];
             foreach ($_POST as $key => $val) {
-                if (false !== strpos($key, 'cate')) {
-                    $g = (int)_common::between('cate_', '_', $key)[0];
-                    $n = (int)_common::between('_', 'e', $key . 'e')[0];
-                    $val = str_replace([' ', '　', "\r\n", "\r", "\n", "\t"], ',', $val);
-                    $data[$g][$n]['cate'] = explode(',', $val);
+                if (false !== strpos($key, 'cate(')) {
+                    $g = (int)_common::between('cate(', ')', $key)[0];
+                    $n = (int)_common::between(')', 'e', $key . 'e')[0];
+                    $needle = [' ', '　', '|', '、', "\r\n", "\r", "\n", "\t"];
+                    $val = str_replace($needle, ',', $val);
+                    $val = explode(',', $val);
+                    $val = array_unique($val);
+                    $val = array_filter($val);
+                    $data[$g][$n]['cate'] = $val;
                 }
-                if (false !== strpos($key, 'adcode')) {
-                    $g = (int)_common::between('cate_', '_', $key)[0];
-                    $n = (int)_common::between('_', 'e', $key . 'e')[0];
+                if (false !== strpos($key, 'adcode(')) {
+                    $g = (int)_common::between('adcode(', ')', $key)[0];
+                    $n = (int)_common::between(')', 'e', $key . 'e')[0];
                     $data[$g][$n]['adcode'] = $val;
                     $group[$g] = $g;
                 }
             }
+            ksort($data);
 
             // 設定済みの最後のグループ番号
             $v['idg'] = max($group);
@@ -54,7 +59,7 @@ class _control_panel
             // 保存
             $data_str = serialize($data);
             _options::update('data', $data_str);
-            _options::update('idg', $v['idg']);
+            _options::update('idg', (string)$v['idg']);
 
             $v["settei_res"] = <<<EOD
                 <div style="padding:1em;">更新しました。</div>
@@ -79,22 +84,24 @@ class _control_panel
         // 保存値を取得
         // 更新の場合は更新済みの値がセットされている
         $data = _options::get('data');
-        $data = unserialize($data);
 
-        // 新規の時
+        // 新規フラグ
         if (empty($data)) {
             $new_flug = true;
         } else {
             $new_flug = false;
+
+            // ソート
+            $data = unserialize($data);
+            ksort($data);
         }
 
         // 重複を除いたグループ番号だけの配列
         if ($new_flug) {
             $group[1] = 1;
         } else {
-            $gu = array_column($data, 'group');
-            foreach ($gu as $i) {
-                $group[$i] = $i;
+            foreach ($data as $key => $val) {
+                $group[$key] = $key;
             }
         }
 
@@ -105,12 +112,22 @@ class _control_panel
             $row_src = self::row_new_src((string)$v['idg'], '', '');
             $tables .= self::tbl_new_src('1', $row_src);
         } else {
-            foreach ($group as $num => $vals) {
+            foreach ($data as $g_key => $g_val) {
                 $row_src = '';
-                foreach ($vals as $key) {
-                    $row_src .= self::row_new_src((string)$num, $key['cate'], $key['adcode']);
+                foreach ($g_val as $val) {
+                    if (isset($val['cate'])) {
+                        $cate = implode(',', $val['cate']);
+                    } else {
+                        $cate = '';
+                    }
+                    if (isset($val['adcode'])) {
+                        $adcode = $val['adcode'];
+                    } else {
+                        $adcode = '';
+                    }
+                    $row_src .= self::row_new_src((string)$g_key, $cate, $adcode);
                 }
-                $tables .= self::tbl_new_src((string)$num, $row_src);
+                $tables .= self::tbl_new_src((string)$g_key, $row_src);
             }
         }
         $v['tables'] = $tables;
@@ -222,11 +239,11 @@ class _control_panel
                     $(document).on("click", "#settei", function(event){
                         $('.cate').each(function(i){
                             var g = $(this).attr('name');
-                            $(this).attr('name', 'cate_' + g + '_' + (i+1));
+                            $(this).attr('name', 'cate(' + g + ')' + (i+1));
                         });
                         $('.adcode').each(function(i){
                             var g = $(this).attr('name');
-                            $(this).attr('name', 'adcode_' + g + '_' + (i+1));
+                            $(this).attr('name', 'adcode(' + g + ')' + (i+1));
                         });
                     });
 
@@ -298,6 +315,9 @@ class _control_panel
         $prefix = "_" . _common::plugin()['name'];
         return <<<EOD
             <style>
+            #wpbody{
+                color:#fff;
+            }
             .{$prefix}_wrap #http_msg_on{
                 margin-top: 1em;
                 padding: 10px;
