@@ -6,7 +6,6 @@ namespace tonkatsutei\Ad_Changer_By_Category\control_panel;
 
 if (!defined('ABSPATH')) exit;
 
-
 use tonkatsutei\Ad_Changer_By_Category\base\_common;
 use tonkatsutei\Ad_Changer_By_Category\image_size\_image_size;
 use tonkatsutei\Ad_Changer_By_Category\base\_options;
@@ -47,6 +46,8 @@ class _control_panel
                 if (false !== strpos($key, 'adcode(')) {
                     $g = (int)_common::between('adcode(', ')', $key)[0];
                     $n = (int)_common::between(')', 'e', $key . 'e')[0];
+                    $val = str_replace("\r", "\\r", $val);
+                    $val = str_replace("\n", "\\n", $val);
                     $data[$g][$n]['adcode'] = $val;
                     $group[$g] = $g;
                 }
@@ -57,7 +58,7 @@ class _control_panel
             $v['idg'] = max($group);
 
             // 保存
-            $data_str = serialize($data);
+            $data_str = json_encode($data);
             _options::update('data', $data_str);
             _options::update('idg', (string)$v['idg']);
 
@@ -90,9 +91,12 @@ class _control_panel
             $new_flug = true;
         } else {
             $new_flug = false;
+        }
 
-            // ソート
-            $data = unserialize($data);
+        if ($new_flug) {
+            $data = [];
+        } else {
+            $data = json_decode($data, true);
             ksort($data);
         }
 
@@ -108,7 +112,6 @@ class _control_panel
         // 保存値からTABLEを生成
         $tables = '';
         if ($new_flug) {
-            print "NEW<br>";
             $row_src = self::row_new_src((string)$v['idg'], '', '');
             $tables .= self::tbl_new_src('1', $row_src);
         } else {
@@ -280,8 +283,8 @@ class _control_panel
                             <h3>グループ {$idg}</h3>
                             <div>
                                 ショートコード：
-                                <span class="code">[ACBC G={$idg}]</span>　
-                                <span class="copycode" data-code="[ACBC G={$idg}]"><i class="fa fa-clipboard" aria-hidden="true"></i> COPY</span>
+                                <span class="code">[ACBC g={$idg}]</span>　
+                                <span class="copycode" data-code="[ACBC g={$idg}]"><i class="fa fa-clipboard" aria-hidden="true"></i> COPY</span>
                             </div>
                             <div class="del_groupe">このグループを削除 <i class="fa fa-minus-square-o" aria-hidden="true"></i></div>
                         </div>

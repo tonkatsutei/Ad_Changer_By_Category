@@ -16,8 +16,8 @@ class _base
         // 管理者メニュー
         add_action('admin_menu', 'tonkatsutei\Ad_Changer_By_Category\control_panel\_control_panel::show_admin_menu');
 
-        // 設定を反映させる
-        //add_action('init', 'tonkatsutei\Ad_Changer_By_Category\image_size\_image_size::apply_setting', 50000);
+        // ショートコードの実行
+        add_action('init', 'tonkatsutei\Ad_Changer_By_Category\shortcode\_shortcode::use_shortcode');
     }
 
     public static function autoload(): void
