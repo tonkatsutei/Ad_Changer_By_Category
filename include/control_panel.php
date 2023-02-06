@@ -7,8 +7,8 @@ namespace tonkatsutei\Ad_Changer_By_Category\control_panel;
 if (!defined('ABSPATH')) exit;
 
 use tonkatsutei\Ad_Changer_By_Category\base\_common;
-use tonkatsutei\Ad_Changer_By_Category\image_size\_image_size;
 use tonkatsutei\Ad_Changer_By_Category\base\_options;
+use tonkatsutei\Ad_Changer_By_Category\js\_js;
 
 class _control_panel
 {
@@ -49,6 +49,11 @@ class _control_panel
                     $val = str_replace("\r", "\\r", $val);
                     $val = str_replace("\n", "\\n", $val);
                     $data[$g][$n]['adcode'] = $val;
+                }
+                if (false !== strpos($key, 'count(')) {
+                    $g = (int)_common::between('count(', ')', $key)[0];
+                    $n = (int)_common::between(')', 'e', $key . 'e')[0];
+                    $data[$g][$n]['count'] = (int)$val;
                     $group[$g] = $g;
                 }
             }
@@ -58,7 +63,7 @@ class _control_panel
             $v['idg'] = max($group);
 
             // 保存
-            $data_str = json_encode($data);
+            $data_str = json_encode($data, JSON_UNESCAPED_UNICODE);
             _options::update('data', $data_str);
             _options::update('idg', (string)$v['idg']);
 
@@ -112,7 +117,7 @@ class _control_panel
         // 保存値からTABLEを生成
         $tables = '';
         if ($new_flug) {
-            $row_src = self::row_new_src((string)$v['idg'], '', '');
+            $row_src = self::row_new_src((string)$v['idg'], '', '', '0');
             $tables .= self::tbl_new_src('1', $row_src);
         } else {
             foreach ($data as $g_key => $g_val) {
@@ -128,7 +133,12 @@ class _control_panel
                     } else {
                         $adcode = '';
                     }
-                    $row_src .= self::row_new_src((string)$g_key, $cate, $adcode);
+                    if (isset($val['count'])) {
+                        $count = (string)$val['count'];
+                    } else {
+                        $count = '0';
+                    }
+                    $row_src .= self::row_new_src((string)$g_key, $cate, $adcode, $count);
                 }
                 $tables .= self::tbl_new_src((string)$g_key, $row_src);
             }
@@ -138,8 +148,9 @@ class _control_panel
         // バージョン
         $v['version'] = 'Ver.' . _common::plugin()['version'];
 
-        $v['row_new_src'] = self::row_new_src('%idg', '%val_cate', '%val_adcode');
+        $v['row_new_src'] = self::row_new_src('%idg', '%val_cate', '%val_adcode', '%val_count');
         $v['tbl_new_src'] = self::tbl_new_src('%idg', '%row_new_src');
+        $v['panel_js'] = _js::panel_js($v);
 
         // HTML
         $code = self::html($v);
@@ -185,85 +196,23 @@ class _control_panel
 
                 </div>
             </form>
-
-            <script src="https://code.jquery.com/jquery-3.6.3.min.js" integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
-            <script>
-                $(function(){
-                    var idg = {$v['idg']};
-
-                    function row_new(idg){
-                        var row_new = `
-                            {$v['row_new_src']}
-                        `;
-                        row_new = row_new.replace( /%idg/g, idg );
-                        row_new = row_new.replace( /%val_cate/g, '' );
-                        row_new = row_new.replace( /%val_adcode/g, '' );
-                        return row_new;
-                    }
-
-                    function tbl_new(idg){
-                        var row_new_src = row_new(idg);
-                        var tbl_new_src = `
-                            {$v['tbl_new_src']}
-                        `;
-                        tbl_new_src = tbl_new_src.replace( /%row_new_src/g, row_new_src );
-                        tbl_new_src = tbl_new_src.replace( /%idg/g, idg );
-                        return tbl_new_src;
-                    }
-
-                    // グループ追加
-                    $(document).on("click", "#add_groupe", function(event){
-                        ++idg;
-                        $('#tbl_foot').before(tbl_new(idg));
-                    });
-
-                    // グループ削除
-                    $(document).on("click", ".del_groupe", function(event){
-                        $(this).parent().parent().parent().parent().parent().remove();
-                    });
-
-                    // 行追加
-                    $(document).on("click", ".add_row", function(event){
-                        $(this).parents('table').find('tbody').append(row_new(idg));
-                    });
-
-                    // 行削除
-                    $(document).on("click", ".del_row", function(event){
-                        $(this).parent().parent().remove();
-                    });
-
-                    // ショートコードをコピー
-                    $(document).on("click", ".copycode", function(event){
-                        const code = $(this).data('code');
-                        navigator.clipboard.writeText(code);
-                    });
-
-                    // 送信前にtextareaのnameに連番を振る
-                    $(document).on("click", "#settei", function(event){
-                        $('.cate').each(function(i){
-                            var g = $(this).attr('name');
-                            $(this).attr('name', 'cate(' + g + ')' + (i+1));
-                        });
-                        $('.adcode').each(function(i){
-                            var g = $(this).attr('name');
-                            $(this).attr('name', 'adcode(' + g + ')' + (i+1));
-                        });
-                    });
-
-                });
-            </script>
+            {$v['panel_js']}
         EOD;
     }
 
-    private static function row_new_src(string $idg, string $cate, string $adcode): string
+    private static function row_new_src(string $idg, string $cate, string $adcode, string $count): string
     {
         return <<<EOD
             <tr>
                 <td>
-                    <textarea class="cate" name="{$idg}">{$cate}</textarea>
+                    <textarea class="cate"   name="{$idg}">{$cate}</textarea>
                 </td>
                 <td>
                     <textarea class="adcode" name="{$idg}">{$adcode}</textarea>
+                </td>
+                <td>
+                    <input    class="count"  name="{$idg}" value="{$count}"></input><br>
+                    <div class="reset">RESET</div>
                 </td>
                 <td class="row_remove">
                     <i class="del_row fa fa-minus-square" aria-hidden="true"></i>
@@ -278,7 +227,7 @@ class _control_panel
             <table class="tbl_groupe">
             <thead>
                 <tr>
-                    <th colspan=3>
+                    <th colspan=4>
                         <div class="horizontal">
                             <h3>グループ {$idg}</h3>
                             <div>
@@ -293,6 +242,10 @@ class _control_panel
                 <tr>
                     <th>対象カテゴリー</th>
                     <th>HTMLタグ（広告）</th>
+                    <th>
+                        クリック数
+                        <i class="fa fa-refresh" aria-hidden="true"></i>
+                    </th>
                     <th>削除</th>
                 </tr>
             </thead>
@@ -367,11 +320,15 @@ class _control_panel
             .{$prefix}_wrap .add_row,
             .{$prefix}_wrap .del_groupe,
             .{$prefix}_wrap i,
+            .{$prefix}_wrap .reset,
             .{$prefix}_wrap #tbl_foot th {
                 cursor: pointer;
             }
-            .{$prefix}_wrap tbody tr td:nth-child(2) textarea {
-                width : 400px;
+            .{$prefix}_wrap .tbl_groupe .adcode {
+                width : 450px;
+            }
+            .{$prefix}_wrap .tbl_groupe .count {
+                width : 100px;
             }
             .{$prefix}_wrap .copycode {
                 border: 1px solid #fff;
@@ -380,8 +337,10 @@ class _control_panel
                 margin-top: 5px;
                 display: inline-block;
             }
-            .{$prefix}_wrap .fa{
-                font-size: 1.6em;
+            .{$prefix}_wrap .count,
+            .{$prefix}_wrap .reset{
+                text-align:right;
+                padding-right: 1em;
             }
             </style>
         EOD;
@@ -394,7 +353,7 @@ class _control_panel
             <style>
             .{$prefix}_wrap {
                 width: 100%;
-                max-width: 700px;
+                max-width: 800px;
                 margin-top: 1em;
                 padding: 1em;
                 border-radius: 10px;
