@@ -224,7 +224,7 @@ class _control_panel
     private static function tbl_new_src(string $idg, string $row_src): string
     {
         return <<<EOD
-            <table class="tbl_groupe">
+            <table class="tbl_groupe" data-idg="{$idg}">
             <thead>
                 <tr>
                     <th colspan=4>
@@ -300,6 +300,10 @@ class _control_panel
             .{$prefix}_wrap .row_remove{
                 text-align:center;
                 padding-top: 1em;
+            }
+            .{$prefix}_wrap .tbl_groupe {
+                width: 100%;
+                padding-right: 28px;
             }
             .{$prefix}_wrap .tbl_groupe td {
                 vertical-align: top;

@@ -84,7 +84,8 @@ class _js
 
                     // 行追加
                     $(document).on("click", ".add_row", function(event){
-                        $(this).parents('table').find('tbody').append(row_new(idg));
+                        var g = $(this).parents('table').data('idg');
+                        $(this).parents('table').find('tbody').append(row_new(g));
                     });
 
                     // 行削除

@@ -36,6 +36,9 @@ class _shortcode
         $data = json_decode($data, true);
 
         // 対象グループのデータ
+        if (!isset($data[$g])) {
+            return '';
+        }
         $ads = $data[$g];
 
         // 同カテゴリーを複数広告にセットしている場合にランダムに表示させる
@@ -52,9 +55,6 @@ class _shortcode
         }
 
         if ($n >= 0) {
-            // 表示のカウントアップ
-            self::countup($n);
-
             // 広告タグを返す
             $adcode = $ads[$n]['adcode'];
             $adcode = <<<EOD
@@ -67,9 +67,5 @@ class _shortcode
 
         // 該当カテゴリーが無い時は空白を返す
         return '';
-    }
-
-    private static function countup(int $n): void
-    {
     }
 }
